@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
+import moment from 'moment';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -18,15 +19,37 @@ interface Habit {
 
 const STORAGE_KEY = '@habits_data';
 
-const formatDate = (date: Date) => {
-  return date.toISOString().split('T')[0];
+const formatDate = (date: moment.Moment) => {
+  return date.format('YYYY-MM-DD');
 };
 
 const getDateFromDaysAgo = (daysAgo: number) => {
-  const date = new Date();
-  date.setHours(0, 0, 0, 0);
-  date.setDate(date.getDate() - (daysAgo - 1));
-  return formatDate(date);
+  return formatDate(moment().startOf('day').subtract(daysAgo - 1, 'days'));
+};
+
+const calculateCurrentStreak = (completed: { [date: string]: boolean }): number => {
+  const today = moment().startOf('day');
+  let streak = 0;
+  let currentDate = moment(today);
+
+  // If today isn't completed, start checking from yesterday
+  if (!completed[formatDate(today)]) {
+    currentDate.subtract(1, 'days');
+  }
+
+  while (true) {
+    const dateKey = formatDate(currentDate);
+    
+    // Break if we find a day that wasn't completed
+    if (!completed[dateKey]) {
+      break;
+    }
+    
+    streak++;
+    currentDate.subtract(1, 'days');
+  }
+
+  return streak;
 };
 
 export default function HomeScreen() {
@@ -36,37 +59,17 @@ export default function HomeScreen() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [yearViewVisible, setYearViewVisible] = useState(false);
   const [addHabitVisible, setAddHabitVisible] = useState(false);
-  const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [animatedCircles, setAnimatedCircles] = useState<{ [key: string]: Animated.Value }>({});
   const [newHabitName, setNewHabitName] = useState('');
-  const yearScrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     loadHabits();
   }, []);
-
+ 
   useEffect(() => {
     if (!isLoading) {  // Only save when not in initial loading
       saveHabits();
-    }
-  }, [habits]);
-
-  useEffect(() => {
-    if (yearViewVisible && yearScrollRef.current) {
-      setTimeout(() => {
-        yearScrollRef.current?.scrollToEnd({ animated: false });
-      }, 100);
-    }
-  }, [yearViewVisible]);
-
-  useEffect(() => {
-    if (editingHabit) {
-      const updatedHabit = habits.find(h => h.id === editingHabit.id);
-      if (updatedHabit && JSON.stringify(updatedHabit) !== JSON.stringify(editingHabit)) {
-        setEditingHabit(updatedHabit);
-      }
     }
   }, [habits]);
 
@@ -137,7 +140,6 @@ export default function HomeScreen() {
     const isCompleting = !habit.completed[dateKey];
     const circleKey = getCircleKey(habitId, dateKey);
     const scaleValue = animatedCircles[circleKey] || new Animated.Value(1);
-    console.log('Toggling habit:', habitId, 'on date:', dateKey, 'isCompleting:', isCompleting);
     if (isCompleting) {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       
@@ -187,28 +189,6 @@ export default function HomeScreen() {
     }
   };
 
-  const editHabit = async (newName: string) => {
-    if (editingHabit && newName.trim()) {
-      setHabits(habits.map(habit => 
-        habit.id === editingHabit.id 
-          ? { ...habit, name: newName.trim() }
-          : habit
-      ));
-      setEditingHabit(null);
-      setNewHabitName('');
-      setAddHabitVisible(false);
-    }
-  };
-
-  const showYearView = (habit: Habit) => {
-    // Find the latest version of the habit from the habits array
-    const currentHabit = habits.find(h => h.id === habit.id);
-    if (currentHabit) {
-      setEditingHabit(currentHabit);
-      setYearViewVisible(true);
-    }
-  };
-
   const showAddHabit = () => {
     setAddHabitVisible(true);
   };
@@ -224,79 +204,25 @@ export default function HomeScreen() {
   // Add delete handler
   const deleteHabit = (habitId: string) => {
     setHabits(habits.filter(h => h.id !== habitId));
-    setYearViewVisible(false);
-    setEditingHabit(null);
   };
 
   // Add this helper function to check if a date is in the future
-  const isFutureDate = (dayOffset: number) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
-    const daysToSubtract = 364 - dayOffset + currentDay;
-    
-    const date = new Date();
-    date.setHours(0, 0, 0, 0);
-    date.setDate(date.getDate() - daysToSubtract);
-    
-    return date > today;
+  const isFutureDate = (dateKey: string) => {
+    const today = moment().startOf('day');
+    const date = moment(dateKey);
+    return date.isAfter(today);
   };
-
-  // Update the year view rendering
-  {editingHabit && (
-    <ScrollView 
-      ref={yearScrollRef}
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={styles.yearGrid}
-      contentContainerStyle={styles.yearGridContent}
-    >
-      {Array(52).fill(null).map((_, weekIndex) => (
-        <View key={weekIndex} style={styles.weekColumn}>
-          {Array(7).fill(null).map((_, dayIndex) => {
-            const daysAgo = (51 - weekIndex) * 7 + dayIndex;
-            const dateKey = getDateFromDaysAgo(daysAgo);
-            const isInFuture = dateKey > formatDate(new Date());
-
-            return (
-              <TouchableOpacity
-                key={dayIndex}
-                onPress={() => !isInFuture && toggleHabit(editingHabit.id, dateKey)}
-                disabled={isInFuture}
-                style={[
-                  styles.yearDayCircle,
-                  isDark && styles.darkYearDayCircle,
-                  !isInFuture && editingHabit.completed[dateKey] && styles.dayCircleCompleted,
-                  !isInFuture && editingHabit.completed[dateKey] && isDark && styles.darkDayCircleCompleted,
-                  isInFuture && styles.futureDayCircle,
-                  isInFuture && isDark && styles.darkFutureDayCircle,
-                ]}
-              />
-            );
-          })}
-        </View>
-      ))}
-    </ScrollView>
-  )}
 
   // Update the main view rendering
   const getLastFiveDays = () => {
     const dates = [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = moment().startOf('day');
     
-    for (let i = 3; i >= -1; i--) {
-      const date = new Date(today);
-      date.setDate(today.getDate() - i);
-      
-      const formattedDate = formatDate(date);
-      const dayDate = new Date(formattedDate);
-      const dayName = dayDate.toLocaleDateString('en-US', { weekday: 'short' });
-
+    for (let i = 4; i >= 0; i--) {
+      const date = moment(today).subtract(i, 'days');
       dates.push({
-        date: formattedDate,
-        dayName: dayName
+        date: formatDate(date),
+        dayName: date.format('ddd')
       });
     }
     return dates;
@@ -318,10 +244,17 @@ export default function HomeScreen() {
         {habits.map(habit => (
           <TouchableOpacity
             key={habit.id}
-            onPress={() => showYearView(habit)}
           >
             <ThemedView style={styles.habitRow}>
-              <ThemedText style={styles.habitName}>{habit.name}</ThemedText>
+              <View style={styles.habitInfo}>
+                <ThemedText style={styles.habitName}>{habit.name}</ThemedText>
+                <View style={styles.streakContainer}>
+                  <Ionicons name="flame" size={16} color="#FF4500" />
+                  <ThemedText style={styles.streakCount}>
+                    {calculateCurrentStreak(habit.completed)}
+                  </ThemedText>
+                </View>
+              </View>
               <ThemedView style={styles.daysContainer}>
                 {getLastFiveDays().map(({ date, dayName }, index) => (
                   <View key={index} style={styles.dayColumn}>
@@ -351,84 +284,6 @@ export default function HomeScreen() {
             </ThemedView>
           </TouchableOpacity>
         ))}
-
-        {/* Year View Modal */}
-        <Modal
-          animationType="fade"
-          transparent={true}
-          visible={yearViewVisible}
-          onRequestClose={() => {
-            setYearViewVisible(false);
-            setEditingHabit(null);
-          }}
-        >
-          <BlurView 
-            intensity={20} 
-            style={styles.modalContainer}
-            tint={isDark ? 'dark' : 'light'}
-          >
-            <TouchableOpacity 
-              style={styles.modalOverlay} 
-              activeOpacity={1} 
-              onPress={() => setYearViewVisible(false)}
-            >
-              <View style={[
-                styles.modalView, 
-                {
-                  backgroundColor: isDark ? 'rgba(26, 26, 26, 0.95)' : 'rgba(255, 255, 255, 0.95)'
-                },
-                isDark && styles.darkModalView
-              ]}>
-                {editingHabit && (
-                  <>
-                    <View style={styles.yearViewContainer}>
-                      <ThemedText style={styles.yearViewTitle}>{editingHabit.name}</ThemedText>
-                      <ScrollView 
-                        ref={yearScrollRef}
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        style={styles.yearGrid}
-                        contentContainerStyle={styles.yearGridContent}
-                      >
-                        {Array(52).fill(null).map((_, weekIndex) => (
-                          <View key={weekIndex} style={styles.weekColumn}>
-                            {Array(7).fill(null).map((_, dayIndex) => {
-                              const daysAgo = (51 - weekIndex) * 7 + dayIndex;
-                              const dateKey = getDateFromDaysAgo(daysAgo);
-                              const isInFuture = dateKey > formatDate(new Date());
-
-                              return (
-                                <TouchableOpacity
-                                  key={dayIndex}
-                                  onPress={() => !isInFuture && toggleHabit(editingHabit.id, dateKey)}
-                                  disabled={isInFuture}
-                                  style={[
-                                    styles.yearDayCircle,
-                                    isDark && styles.darkYearDayCircle,
-                                    !isInFuture && editingHabit.completed[dateKey] && styles.dayCircleCompleted,
-                                    !isInFuture && editingHabit.completed[dateKey] && isDark && styles.darkDayCircleCompleted,
-                                    isInFuture && styles.futureDayCircle,
-                                    isInFuture && isDark && styles.darkFutureDayCircle,
-                                  ]}
-                                />
-                              );
-                            })}
-                          </View>
-                        ))}
-                      </ScrollView>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.deleteButton}
-                      onPress={() => deleteHabit(editingHabit.id)}
-                    >
-                      <Ionicons name="trash-outline" size={18} color="#000" />
-                    </TouchableOpacity>
-                  </>
-                )}
-              </View>
-            </TouchableOpacity>
-          </BlurView>
-        </Modal>
 
         {/* Add Habit Modal */}
         <Modal
@@ -532,8 +387,6 @@ const styles = StyleSheet.create({
   },
   habitName: {
     fontSize: 16,
-    flex: 1,
-    marginRight: 12,
   },
   daysContainer: {
     flexDirection: 'row',
@@ -670,66 +523,18 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#666',
   },
-  yearViewContainer: {
-    width: '100%',
-    padding: 20,
+  habitInfo: {
+    flex: 1,
+    marginRight: 12,
   },
-  yearViewTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 20,
+  streakCount: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 4,
   },
-  yearGrid: {
+  streakContainer: {
     flexDirection: 'row',
-  },
-  weekColumn: {
-    flexDirection: 'column',
-    gap: 2,
-    marginRight: 2,
-  },
-  yearDayCircle: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    borderWidth: 1,
-    borderColor: '#000',
-    margin: 1,
-  },
-  darkYearDayCircle: {
-    borderColor: '#fff',
-  },
-  yearGridContent: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingHorizontal: 20,
-  },
-  deleteButton: {
-    position: 'absolute',
-    bottom: -50,
-    right: 20,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  futureDayCircle: {
-    borderColor: '#e0e0e0',
-    borderWidth: 0.5,
-    opacity: 0.3,
-  },
-  darkFutureDayCircle: {
-    borderColor: '#404040',
-    borderWidth: 0.5,
-    opacity: 0.3,
+    marginTop: 4,
   },
 });
