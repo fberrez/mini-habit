@@ -1,50 +1,75 @@
-# Welcome to your Expo app 👋
+# minihabits.
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A minimalist habit tracking app built with React Native and Expo, designed to help users build and maintain daily habits with a clean, intuitive interface.
 
-## Get started
+## Features
 
-1. Install dependencies
+- 🌓 Dark/Light mode support
+- 📱 Clean, modern UI with smooth animations
+- 📊 5-day habit tracking view
+- 🔥 Streak counting
+- 💾 Persistent storage using AsyncStorage
+- 📲 Haptic feedback for interactions
+- 🔍 Detailed habit view
+- ➕ Easy habit creation with modal interface
 
-   ```bash
-   npm install
-   ```
+## Tech Stack
 
-2. Start the app
+- React Native
+- Expo
+- TypeScript
+- React Navigation
+- AsyncStorage
+- Expo Haptics
+- Expo BlurView
+- Moment.js
 
-   ```bash
-    npx expo start
-   ```
+## Getting Started
 
-In the output, you'll find options to open the app in a
+### Prerequisites
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+- Node.js (v14 or later)
+- npm or yarn
+- Expo CLI
+- iOS Simulator (for iOS testing)
+- Android Studio (for Android testing)
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+### Installation
 
-## Get a fresh project
-
-When you're ready, run:
+1. Clone the repository:
 
 ```bash
-npm run reset-project
+git clone https://github.com/fberrez/minihabits.git
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+2. Install dependencies:
 
-## Learn more
+```bash
+cd minihabits
+npm install
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+3. Start the development server:
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```bash
+npm run ios
+```
 
-## Join the community
+## Project Structure
 
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```bash
+├── app/
+│ ├── (tabs)/
+│ │ ├── index.tsx # Main habits screen
+│ │ ├── layout.tsx # Tab navigation layout
+│ │ └── HabitDetailsScreen.tsx
+│ └── layout.tsx # Root layout with theme provider
+├── components/
+│ ├── CustomSplash.tsx # Splash screen component
+│ ├── ThemedText.tsx
+│ └── ThemedView.tsx
+├── constants/
+│ └── StorageKey.tsx
+└── hooks/
+└── useColorScheme.ts
+```
