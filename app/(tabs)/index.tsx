@@ -1,4 +1,4 @@
-import React, { useState, useEffect} from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Modal, TextInput, View, useColorScheme, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -58,6 +58,8 @@ export default function HomeScreen() {
   const [addHabitVisible, setAddHabitVisible] = useState(false);
   const [animatedCircles, setAnimatedCircles] = useState<{ [key: string]: Animated.Value }>({});
   const [newHabitName, setNewHabitName] = useState('');
+  const fadeAnims = useRef<Animated.Value[]>([]).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     loadHabits();
@@ -68,6 +70,38 @@ export default function HomeScreen() {
       saveHabits();
     }
   }, [habits]);
+
+  useEffect(() => {
+    // Reset animation values
+    fadeAnims.length = 0;
+    
+    // Create new animation values for each habit
+    habits.forEach(() => {
+      fadeAnims.push(new Animated.Value(0));
+    });
+    
+    if (!isLoading) {
+      Animated.stagger(100, 
+        fadeAnims.map(anim => 
+          Animated.timing(anim, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          })
+        )
+      ).start();
+    }
+  }, [isLoading, habits.length]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [isLoading]);
 
   const saveHabits = async () => {
     try {
@@ -92,17 +126,6 @@ export default function HomeScreen() {
       setIsLoading(false);
     }
   };
-
-  // Loading and error checks
-  if (isLoading) {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.loadingContainer}>
-          <ThemedText>Loading...</ThemedText>
-        </ThemedView>
-      </SafeAreaView>
-    );
-  }
 
   if (error) {
     return (
@@ -217,49 +240,66 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </ThemedView>
 
-        {habits.map(habit => (
-          <TouchableOpacity
-            key={habit.id}
-          >
-            <ThemedView style={styles.habitRow}>
-              <View style={styles.habitInfo}>
-                <ThemedText style={styles.habitName}>{habit.name}</ThemedText>
-                <View style={styles.streakContainer}>
-                  <Ionicons name="flame" size={16} color="#FF4500" />
-                  <ThemedText style={styles.streakCount}>
-                    {calculateCurrentStreak(habit.completed)}
-                  </ThemedText>
-                </View>
-              </View>
-              <ThemedView style={styles.daysContainer}>
-                {getLastFiveDays().map(({ date, dayName }, index) => (
-                  <View key={index} style={styles.dayColumn}>
-                    <ThemedText style={styles.dayLabel}>{dayName}</ThemedText>
-                    <Animated.View
-                      style={[
-                        {
-                          transform: [{
-                            scale: getAnimatedValue(habit.id, date)
-                          }]
-                        }
-                      ]}
-                    >
-                      <TouchableOpacity
-                        onPress={() => toggleHabit(habit.id, date)}
-                        style={[
-                          styles.dayCircle,
-                          isDark && styles.darkDayCircle,
-                          habit.completed[date] && 
-                            (isDark ? styles.darkDayCircleCompleted : styles.dayCircleCompleted)
-                        ]}
-                      />
-                    </Animated.View>
+        <Animated.View style={{ opacity: fadeAnim }}>
+          {habits.map((habit, index) => (
+            <Animated.View
+              key={habit.id}
+              style={[
+                {
+                  opacity: fadeAnims[index] || new Animated.Value(1),
+                  transform: [{
+                    translateY: (fadeAnims[index] || new Animated.Value(1)).interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [10, 0]
+                    })
+                  }]
+                }
+              ]}
+            >
+              <TouchableOpacity
+                key={habit.id}
+              >
+                <ThemedView style={styles.habitRow}>
+                  <View style={styles.habitInfo}>
+                    <ThemedText style={styles.habitName}>{habit.name}</ThemedText>
+                    <View style={styles.streakContainer}>
+                      <Ionicons name="flame" size={16} color="#FF4500" />
+                      <ThemedText style={styles.streakCount}>
+                        {calculateCurrentStreak(habit.completed)}
+                      </ThemedText>
+                    </View>
                   </View>
-                ))}
-              </ThemedView>
-            </ThemedView>
-          </TouchableOpacity>
-        ))}
+                  <ThemedView style={styles.daysContainer}>
+                    {getLastFiveDays().map(({ date, dayName }, index) => (
+                      <View key={index} style={styles.dayColumn}>
+                        <ThemedText style={styles.dayLabel}>{dayName}</ThemedText>
+                        <Animated.View
+                          style={[
+                            {
+                              transform: [{
+                                scale: getAnimatedValue(habit.id, date)
+                              }]
+                            }
+                          ]}
+                        >
+                          <TouchableOpacity
+                            onPress={() => toggleHabit(habit.id, date)}
+                            style={[
+                              styles.dayCircle,
+                              isDark && styles.darkDayCircle,
+                              habit.completed[date] && 
+                                (isDark ? styles.darkDayCircleCompleted : styles.dayCircleCompleted)
+                            ]}
+                          />
+                        </Animated.View>
+                      </View>
+                    ))}
+                  </ThemedView>
+                </ThemedView>
+              </TouchableOpacity>
+            </Animated.View>
+          ))}
+        </Animated.View>
 
         {/* Add Habit Modal */}
         <Modal
