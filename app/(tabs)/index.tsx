@@ -6,18 +6,18 @@ import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import moment from 'moment';
+import { useRouter } from 'expo-router';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { TouchableOpacity, ScrollView } from 'react-native';
+import { STORAGE_KEY } from '@/constants/StorageKey';
 
 interface Habit {
   id: string;
   name: string;
   completed: { [date: string]: boolean }; // Change to use date strings as keys
 }
-
-const STORAGE_KEY = '@habits_data';
 
 const formatDate = (date: moment.Moment) => {
   return date.format('YYYY-MM-DD');
@@ -49,6 +49,7 @@ const calculateCurrentStreak = (completed: { [date: string]: boolean }): number 
 };
 
 export default function HomeScreen() {
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -257,7 +258,17 @@ export default function HomeScreen() {
               ]}
             >
               <TouchableOpacity
-                key={habit.id}
+                onPress={() => {
+                  const habitData = JSON.stringify(habit);
+                  const habitsData = JSON.stringify(habits);
+                  router.replace({
+                    pathname: '/HabitDetailsScreen',
+                    params: { 
+                      habit: habitData,
+                      habits: habitsData
+                    }
+                  });
+                }}
               >
                 <ThemedView style={styles.habitRow}>
                   <View style={styles.habitInfo}>
