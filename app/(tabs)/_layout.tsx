@@ -16,12 +16,6 @@ export default function TabLayout() {
           title: 'Habits',
         }}
       />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Stats',
-        }}
-      />
     </Tabs>
   );
 }

@@ -1,5 +1,5 @@
+import React, { useState, useEffect} from 'react';
 import { StyleSheet, Modal, TextInput, View, useColorScheme, Animated } from 'react-native';
-import { useState, useEffect, useRef } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
@@ -23,14 +23,10 @@ const formatDate = (date: moment.Moment) => {
   return date.format('YYYY-MM-DD');
 };
 
-const getDateFromDaysAgo = (daysAgo: number) => {
-  return formatDate(moment().startOf('day').subtract(daysAgo - 1, 'days'));
-};
-
 const calculateCurrentStreak = (completed: { [date: string]: boolean }): number => {
   const today = moment().startOf('day');
   let streak = 0;
-  let currentDate = moment(today);
+  const currentDate = moment(today);
 
   // If today isn't completed, start checking from yesterday
   if (!completed[formatDate(today)]) {
@@ -122,7 +118,7 @@ export default function HomeScreen() {
   const getCircleKey = (habitId: string, dateKey: string) => `${habitId}-${dateKey}`;
 
   // Initialize animation value for new circles
-  const getAnimatedValue = (habitId: string, dayIndex: number) => {
+  const getAnimatedValue = (habitId: string, dayIndex: string) => {
     const key = getCircleKey(habitId, dayIndex);
     if (!animatedCircles[key]) {
       setAnimatedCircles(prev => ({
@@ -191,26 +187,6 @@ export default function HomeScreen() {
 
   const showAddHabit = () => {
     setAddHabitVisible(true);
-  };
-
-  // Add the getDayName function
-  const getDayName = (index: number) => {
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const today = new Date();
-    const day = new Date(today.setDate(today.getDate() - (4 - index)));
-    return days[day.getDay()];
-  };
-
-  // Add delete handler
-  const deleteHabit = (habitId: string) => {
-    setHabits(habits.filter(h => h.id !== habitId));
-  };
-
-  // Add this helper function to check if a date is in the future
-  const isFutureDate = (dateKey: string) => {
-    const today = moment().startOf('day');
-    const date = moment(dateKey);
-    return date.isAfter(today);
   };
 
   // Update the main view rendering
@@ -319,7 +295,6 @@ export default function HomeScreen() {
                   value={newHabitName}
                   onChangeText={setNewHabitName}
                   autoFocus={true}
-                  color={isDark ? '#fff' : '#000'}
                 />
                 <View style={styles.modalButtons}>
                   <TouchableOpacity 
