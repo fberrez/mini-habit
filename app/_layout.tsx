@@ -18,14 +18,12 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    console.log('Splash state:', { loaded, splashAnimationComplete });
   }, [loaded, splashAnimationComplete]);
 
   if (!loaded || !splashAnimationComplete) {
     return (
       <CustomSplash 
         onAnimationComplete={() => {
-          console.log('Animation complete');
           setSplashAnimationComplete(true);
         }} 
       />

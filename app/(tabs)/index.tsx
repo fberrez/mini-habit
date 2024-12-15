@@ -48,6 +48,19 @@ const calculateCurrentStreak = (completed: { [date: string]: boolean }): number 
   return streak;
 };
 
+const calculateConsecutiveDays = (completed: { [date: string]: boolean }): number => {
+  let consecutiveDays = 0;
+  const today = moment().startOf('day');
+  const currentDate = moment(today);
+
+  while (consecutiveDays < 21 && completed[formatDate(currentDate)]) {
+    consecutiveDays++;
+    currentDate.subtract(1, 'days');
+  }
+
+  return consecutiveDays;
+};
+
 export default function HomeScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
@@ -273,11 +286,26 @@ export default function HomeScreen() {
                 <ThemedView style={styles.habitRow}>
                   <View style={styles.habitInfo}>
                     <ThemedText style={styles.habitName}>{habit.name}</ThemedText>
-                    <View style={styles.streakContainer}>
-                      <Ionicons name="flame" size={16} color="#FF4500" />
-                      <ThemedText style={styles.streakCount}>
-                        {calculateCurrentStreak(habit.completed)}
-                      </ThemedText>
+                    <View style={styles.statsContainer}>
+                      <View style={styles.streakContainer}>
+                        <Ionicons name="flame" size={16} color="#FF4500" />
+                        <ThemedText style={styles.streakCount}>
+                          {calculateCurrentStreak(habit.completed)}
+                        </ThemedText>
+                      </View>
+                      <View style={styles.streakContainer}>
+                        <Ionicons name="fitness" size={16} color="#FF6B6B" />
+                        <ThemedText style={[
+                          styles.streakCount,
+                          calculateConsecutiveDays(habit.completed) >= 21 && styles.completedStreak
+                        ]}>
+                          {calculateConsecutiveDays(habit.completed) >= 21 ? (
+                            <Ionicons name="checkmark-circle" size={14} color="#4CAF50" />
+                          ) : (
+                            `${calculateConsecutiveDays(habit.completed)}/21`
+                          )}
+                        </ThemedText>
+                      </View>
                     </View>
                   </View>
                   <ThemedView style={styles.daysContainer}>
@@ -553,14 +581,22 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 12,
   },
+  statsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 12,
+  },
+  streakContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   streakCount: {
     fontSize: 12,
     color: '#666',
     marginLeft: 4,
   },
-  streakContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
+  completedStreak: {
+    color: '#4CAF50',
   },
 });
